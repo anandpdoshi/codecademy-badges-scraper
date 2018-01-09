@@ -5,6 +5,7 @@ import datetime
 import time
 from collections import OrderedDict
 from bs4 import BeautifulSoup
+import os
 
 session = requests.Session()
 
@@ -54,7 +55,9 @@ def get_badges():
             'username': user['username'],
             'name': user['name']
         }
-        get_achievements(user, checklist, result)
+        if user['username']:
+            get_achievements(user, checklist, result)
+            
         results_list.append(result)
 
         time.sleep(1)
