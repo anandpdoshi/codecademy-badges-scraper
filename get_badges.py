@@ -52,12 +52,12 @@ def get_badges():
     results_list = []
     for user in get_users():
         result = {
-            'username': user['username'],
-            'name': user['name']
+            'username': (user['username'] or '').strip(),
+            'name': (user['name'] or '').strip()
         }
         if user['username']:
             get_achievements(user, checklist, result)
-            
+
         results_list.append(result)
 
         time.sleep(1)
@@ -94,7 +94,7 @@ def get_achievements(user, checklist, result):
                 if achievement_date <= checklist[achievement_title]:
                     result[achievement_title] = "Done"
                 else:
-                    result[achievement_title] = "Late"
+                    result[achievement_title] = achievement_date.strftime("%d %b")
 
 def save_user_badges(results_list, checklist):
     with open(os.path.join('data', 'results.csv'), 'w') as results_file:
