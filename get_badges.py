@@ -8,6 +8,7 @@ from bs4 import BeautifulSoup
 import os
 
 session = requests.Session()
+headers = {'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_10_1) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/39.0.2171.95 Safari/537.36'}
 
 def ask_credentials():
     print('Your Codecademy Credentials:')
@@ -18,18 +19,60 @@ def ask_credentials():
         "password": password
     }
 
+def get_with_chrome(url, css_selector):
+    from selenium import webdriver
+    from selenium.webdriver.support.ui import WebDriverWait
+    from selenium.webdriver.support import expected_conditions as EC
+    from selenium.webdriver.common.by import By
+    from selenium.common.exceptions import TimeoutException
+
+    browser = webdriver.Chrome()
+    browser.get(url)
+    delay = 3 # seconds
+    try:
+        myElem = WebDriverWait(browser, delay).until(EC.presence_of_element_located((By.CSS_SELECTOR, css_selector)))
+        print("Page is ready!")
+    except TimeoutException:
+        print("Loading took too much time!")
+
+    inner_html = browser.execute_script("return document.body.innerHTML") #returns the inner HTML as a string
+    # print(inner_html)
+    cookies_list = browser.get_cookies()
+    cookies_dict = {}
+    for cookie in cookies_list:
+        cookies_dict[cookie['name']] = cookie['value']
+
+    # cookies = browser.get_cookies();
+    # print(cookies_dict)
+    browser.close()
+    return {
+        'html': inner_html,
+        'cookies': cookies_dict
+    }
+
 def login(credentials):
-    response = session.get('https://www.codecademy.com/login')
+    url = 'https://www.codecademy.com/login'
+    response = session.get(url, headers=headers)
     if response.status_code!=200:
         print('Error: Could not get codecademy home page')
         print(response.text)
         return False
 
-    # print(response.text)
-    soup = BeautifulSoup(response.text, "html.parser")
-    form_tag = soup.find('form', {'action': '/login'})
-    authenticity_token_tag = form_tag.find('input', {'name': 'authenticity_token'})
-    authenticity_token = authenticity_token_tag['value']
+    def get_authenticity_token(soup):
+        form_tag = soup.find('form', {'action': '/login'})
+        authenticity_token_tag = form_tag.find('input', {'name': 'authenticity_token'})
+        authenticity_token = authenticity_token_tag['value']
+        return authenticity_token
+
+    try:
+        soup = BeautifulSoup(response.text, "html.parser")
+        authenticity_token = get_authenticity_token(soup)
+    except AttributeError:
+        result = get_with_chrome(url, 'input[name="authenticity_token"]')
+        soup = BeautifulSoup(result['html'], "html.parser")
+        session.cookies.update(result['cookies'])
+        authenticity_token = get_authenticity_token(soup)
+
     if not authenticity_token:
         print('Could not determine authenticity token')
         return False
@@ -87,7 +130,12 @@ def get_achievements(user, checklist, result):
         soup = BeautifulSoup(response.text, "html.parser")
         achievement_cards = soup.find_all('div', {'class': 'achievement-card'})
         for card in achievement_cards:
-            achievement_title = card.find('h5').text.replace('Course Completed: Learn ', '').replace('Lesson Completed: Learn ', '')
+            achievement_title = (card.find('h5').text
+                .replace('Course Completed: Learn ', '')
+                # .replace('Lesson Completed: Learn ', '')
+                .replace('Course Completed: ', '')
+                # .replace('Lesson Completed: ', '')
+            )
             achievement_date_text = card.find('small', {'class': 'text--ellipsis'}).text
             achievement_date = datetime.datetime.strptime(achievement_date_text, "%b %d, %Y")
             if achievement_title in checklist:
