@@ -130,12 +130,13 @@ def get_achievements(user, checklist, result):
         soup = BeautifulSoup(response.text, "html.parser")
         achievement_cards = soup.find_all('div', {'class': 'achievement-card'})
         for card in achievement_cards:
-            achievement_title = (card.find('h5').text
+            original_achievement_title = card.find('h5').text
+            achievement_title = (original_achievement_title
                 .replace('Course Completed: Learn ', '')
-                # .replace('Lesson Completed: Learn ', '')
+                .replace('Lesson Completed: Learn ', '')
                 .replace('Course Completed: ', '')
-                # .replace('Lesson Completed: ', '')
-            )
+                .replace('Lesson Completed: ', '')
+            ).strip()
             achievement_date_text = card.find('small', {'class': 'text--ellipsis'}).text
             achievement_date = datetime.datetime.strptime(achievement_date_text, "%b %d, %Y")
             if achievement_title in checklist:
@@ -143,6 +144,10 @@ def get_achievements(user, checklist, result):
                     result[achievement_title] = "Done"
                 else:
                     result[achievement_title] = achievement_date.strftime("%d %b")
+    #         else:
+    #             print('x', achievement_title, '/', original_achievement_title)
+    #
+    # print('-'*10)
 
 def save_user_badges(results_list, checklist):
     with open(os.path.join('data', 'results.csv'), 'w') as results_file:
